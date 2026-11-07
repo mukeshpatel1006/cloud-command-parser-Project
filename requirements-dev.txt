@@ -1,0 +1,10 @@
+pytest==8.3.3
+ruff==0.8.0
+locust
+pyyaml
+boto3==1.35.70
+requests==2.32.3
+fastapi==0.115.5
+httpx==0.27.2
+jsonschema==4.23.0
+pydantic==2.10.2

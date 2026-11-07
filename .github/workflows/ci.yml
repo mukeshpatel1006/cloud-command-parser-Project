@@ -1,0 +1,68 @@
+﻿name: ci
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      model_source:
+        description: "release = your trained model; base = untrained pythia-70m (deliberate gate failure)"
+        default: release
+env:
+  RELEASE_TAG: final          # edit: tag of the GitHub Release holding model-v2.tar.gz
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install ruff==0.8.0 && ruff check .
+  unit-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install pytest==8.3.3 httpx==0.27.2 fastapi==0.115.5 pydantic==2.10.2 jsonschema==4.23.0 boto3==1.35.70 requests==2.32.3 pyyaml
+      - run: python -m pytest -q tests
+      - run: python tools/nacl_sim.py network/nacl.json network/packets_sample.jsonl --check
+  evaluate:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - name: install CPU deps
+        run: |
+          pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers==4.46.3 numpy==1.26.4
+      - name: get model
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          if [ "${{ github.event.inputs.model_source }}" = "base" ]; then
+            echo "MODEL=EleutherAI/pythia-70m" >> $GITHUB_ENV
+          else
+            gh release download "$RELEASE_TAG" -p 'model-v2.*' -D rel
+            (cd rel && sha256sum -c model-v2.sha256)
+            mkdir model && tar -xzf rel/model-v2.tar.gz -C model
+            echo "MODEL=model" >> $GITHUB_ENV
+          fi
+      - name: predict on validation set
+        run: |
+          mkdir -p results
+          python training/predict.py --model "$MODEL" --input data/validation.jsonl --out results/ci_predictions.jsonl
+      - name: score
+        run: python tools/score.py results/ci_predictions.jsonl data/validation.jsonl --out results/ci_score.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: ci-results, path: results/}
+      - name: quality gate (JSON validity >= 95)
+        run: python tools/score.py results/ci_predictions.jsonl data/validation.jsonl --min-validity 95
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: gitleaks/gitleaks-action@v2
+        env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
+

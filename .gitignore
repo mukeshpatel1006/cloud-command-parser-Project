@@ -1,0 +1,15 @@
+models_local/
+release/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.safetensors
+*.bin
+*.tar.gz
+results/mem_samples.txt
+.venv/
+.env
+.env.*
+!.env.example
+
+config/s3.json

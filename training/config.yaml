@@ -1,0 +1,18 @@
+# All training settings live here. `make train` reads only this file.
+version: v1
+base_model: EleutherAI/pythia-70m
+train_file: datasets/v1/train.jsonl      # produced by worker/clean.py (downloaded from datasets/v1/)
+output_dir: models_local/v1
+loss_csv: training/loss.csv
+seed: 42
+learning_rate: 5.0e-5
+batch_size: 2
+epochs: 3
+max_seq_len: 96
+max_train_examples: 1500            # assignment limit: first 1,500 cleaned records
+library_versions:                    # keep identical to service/requirements.txt
+  torch: 2.5.1
+  transformers: 4.46.3
+  numpy: 1.26.4
+
+
