@@ -1,7 +1,7 @@
 # Cloud Computing Mini Project — Distilled command parser on a local Kubernetes cloud
 
 Name:< Mukesh Kumar Verma > Roll number:<230101006>
-GitHub repository: https://github.com/mukeshpatel1006/cloud-command-parser-Project/(final commit tagged `final`)
+GitHub repository: https://github.com/mukeshpatel1006/cloud-command-parser-Project/
 GitHub Release (model, tokenizer, version, checksums): https://github.com/mukeshpatel1006/cloud-command-parser-Project/ /releases/tag/model-release**
 
 Teacher: phi3.5 via Ollama (temperature 0, seed 42) -> sequence-level distillation -> student EleutherAI/pythia-70m -> FastAPI service
