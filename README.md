@@ -7,9 +7,7 @@
 **Institute:** Indian Institute of Information Technology, Manipur  
 **Course:** CS3081 – Cloud Computing
 
-**GitHub Repository:** https://github.com/mukeshpatel1006/cloud-command-parser-Project
-
-**GitHub Release:** https://github.com/mukeshpatel1006/cloud-command-parser-Project/releases/tag/final
+**Repository:** https://github.com/mukeshpatel1006/cloud-command-parser-Project
 
 ---
 
@@ -892,4 +890,8 @@ The project brings together machine learning, cloud infrastructure, containeriza
 **Project:** Cloud Computing Mini Project – CS3081  
 **Institute:** IIIT Manipur
 
+<<<<<<< HEAD
 **Repository:** https://github.com/mukeshpatel1006/cloud-command-parser-Project
+=======
+**Repository:** https://github.com/mukeshpatel1006/cloud-command-parser-Project
+>>>>>>> 2c63500 (Update project pipeline and documentation)

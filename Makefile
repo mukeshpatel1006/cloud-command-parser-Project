@@ -1,21 +1,16 @@
-﻿# Usage: see README.md.  `make up` = whole system from a fresh clone; `make down` = delete the cluster.
-# edit GITHUB_REPO below
-GITHUB_REPO ?= YOUR_USER/YOUR_REPO
+﻿
+GITHUB_REPO ?= mukeshpatel1006/cloud-command-parser-Project
 RELEASE_TAG ?= final
 CONFIG ?= training/config.yaml
 SUBSET ?= 0
 
-.PHONY: up down cluster storage images deploy train test lint nacl
+.PHONY: up down cluster storage images models deploy train test lint nacl
 
-up: cluster storage images
-	scripts/seed_models.sh $(GITHUB_REPO) $(RELEASE_TAG)
-	kubectl apply -f k8s/app/app.yaml
-	kubectl -n app rollout status deploy/parser --timeout=300s
-	@echo "Service ready: curl -X POST localhost:8080/parse -H 'content-type: application/json' -d '{\"text\":\"what is the weather in london\"}'"
+up: cluster storage images models deploy
 
 cluster:
 	k3d cluster create --config cluster/k3d.yaml || true
-	scripts/create_secrets.sh
+	bash scripts/create_secrets.sh
 
 storage:
 	kubectl apply -f k8s/data/seaweedfs.yaml
@@ -27,8 +22,15 @@ images:
 	docker build -t cc-worker:1 -f worker/Dockerfile .
 	k3d image import cc-parser:3 cc-worker:1 -c cc
 
-down:
-	k3d cluster delete cc
+models:
+	bash scripts/seed_models.sh $(GITHUB_REPO) $(RELEASE_TAG)
+
+deploy:
+	kubectl apply -f k8s/app/app.yaml
+	kubectl -n app rollout status deploy/parser --timeout=300s
+	@echo "Service ready: http://localhost:8080"
+	@echo "Test command:"
+	@echo "curl -X POST http://localhost:8080/parse -H 'Content-Type: application/json' -d '{\"text\":\"what is the weather in london\"}'"
 
 train:
 	python3 training/train.py --config $(CONFIG) $(if $(filter-out 0,$(SUBSET)),--subset $(SUBSET),)
@@ -42,3 +44,5 @@ lint:
 nacl:
 	python3 tools/nacl_sim.py network/nacl.json network/packets_sample.jsonl --check
 
+down:
+	k3d cluster delete cc

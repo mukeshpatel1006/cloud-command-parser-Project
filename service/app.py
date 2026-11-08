@@ -4,11 +4,11 @@ Credentials: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from a Kubernetes Secret.
 import os
 import tempfile
 import threading
-
+from service.validation import validate_output
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from validation import validate_output
+from service.validation import validate_output
 
 MODEL_URI = os.environ.get("MODEL_URI", "")
 MODEL_VERSION = os.environ.get("MODEL_VERSION", "unknown")
@@ -52,16 +52,26 @@ def download_model(uri, endpoint, dest):
 def load_model():
     try:
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        dest = tempfile.mkdtemp(prefix="model-")
-        download_model(MODEL_URI, S3_ENDPOINT, dest)
+
+        dest = os.environ.get(
+            "LOCAL_MODEL_PATH",
+            "models_local/v1_kaggle_10epochs"
+        )
+
+        print(f"Loading local model from: {dest}", flush=True)
+
         tok = AutoTokenizer.from_pretrained(dest)
         tok.pad_token = tok.eos_token
+
         model = AutoModelForCausalLM.from_pretrained(dest).eval()
-        state.update(tok=tok, model=model)
-        print(f"model {MODEL_VERSION} loaded", flush=True)
-    except Exception as e:  # noqa: BLE001
+
+        state.update(tok=tok, model=model, error=None)
+
+        print(f"Model {MODEL_VERSION} loaded successfully", flush=True)
+
+    except Exception as e:
         state["error"] = str(e)
-        print("model load failed:", e, flush=True)
+        print("Model load failed:", e, flush=True)
 
 
 @app.on_event("startup")
@@ -71,16 +81,30 @@ def _startup():
 
 def generate(text):
     import torch
-    prompt = f"Command: {text.lower()}\nJSON: "
+
+    prompt = (
+        f"{PROMPT_INSTRUCTIONS}\n"
+        f"Command: {text.lower()}\n"
+        "JSON: "
+    )
+
     tok, model = state["tok"], state["model"]
     enc = tok(prompt, return_tensors="pt")
-    with _lock, torch.inference_mode():
-        out = model.generate(**enc, max_new_tokens=MAX_NEW_TOKENS, do_sample=False,
-                             pad_token_id=tok.eos_token_id,
-                             repetition_penalty=REPETITION_PENALTY,
-                             no_repeat_ngram_size=NO_REPEAT_NGRAM_SIZE)
-    return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
+    with _lock, torch.inference_mode():
+        out = model.generate(
+            **enc,
+            max_new_tokens=MAX_NEW_TOKENS,
+            do_sample=False,
+            pad_token_id=tok.eos_token_id,
+            repetition_penalty=REPETITION_PENALTY,
+            no_repeat_ngram_size=NO_REPEAT_NGRAM_SIZE
+        )
+
+    return tok.decode(
+        out[0][enc["input_ids"].shape[1]:],
+        skip_special_tokens=True
+    ).strip()
 
 def _headers():
     return {"X-Model-Version": MODEL_VERSION, "X-Served-By": POD}
